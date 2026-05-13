@@ -22,9 +22,9 @@ function setupWebSocket(server) {
         }
 
         if (message.type === 'message') {
-          const { fromUserId, toUserId, content } = message;
-          if (!fromUserId || !content) {
-            ws.send(JSON.stringify({ type: 'error', error: 'fromUserId and content are required.' }));
+          const { fromUserId, toUserId, content, fileUrl, fileType, fileName } = message;
+          if (!fromUserId || (!content && !fileUrl)) {
+            ws.send(JSON.stringify({ type: 'error', error: 'fromUserId and either content or fileUrl are required.' }));
             return;
           }
 
@@ -36,7 +36,10 @@ function setupWebSocket(server) {
           const savedMessage = await Message.create({
             fromUserId,
             toUserId: toUserId || null,
-            content,
+            content: content || '',
+            fileUrl: fileUrl || null,
+            fileType: fileType || null,
+            fileName: fileName || null,
           });
 
           const outbound = JSON.stringify({
@@ -46,6 +49,9 @@ function setupWebSocket(server) {
               fromUserId: savedMessage.fromUserId,
               toUserId: savedMessage.toUserId,
               content: savedMessage.content,
+              fileUrl: savedMessage.fileUrl,
+              fileType: savedMessage.fileType,
+              fileName: savedMessage.fileName,
               createdAt: savedMessage.createdAt,
             },
           });

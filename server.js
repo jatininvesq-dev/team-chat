@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const dns = require('dns');
 const dotenv = require('dotenv');
+const path = require('path');
+const fs = require('fs');
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
@@ -19,6 +21,13 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
 app.get('/', (req, res) => {
   res.json({ message: 'Chatty backend is running' });
