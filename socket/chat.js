@@ -1,7 +1,23 @@
 const WebSocket = require('ws');
 const Message = require('../models/Message');
+const User = require('../models/User');
 
 const clients = new Map();
+
+async function broadcastStatus(userId, isOnline) {
+  const statusMessage = JSON.stringify({
+    type: 'status_update',
+    userId,
+    isOnline,
+    lastSeen: new Date(),
+  });
+
+  for (const [id, clientWs] of clients.entries()) {
+    if (id !== userId && clientWs.readyState === WebSocket.OPEN) {
+      clientWs.send(statusMessage);
+    }
+  }
+}
 
 function setupWebSocket(server) {
   const wss = new WebSocket.Server({ server });
@@ -12,11 +28,27 @@ function setupWebSocket(server) {
     ws.on('message', async (messageText) => {
       try {
         const message = JSON.parse(messageText);
+        console.log('Received message:', message);
 
         if (message.type === 'init') {
-          userId = message.userId;
+          userId = message.userId || message.fromUserId;
+          console.log(`User ${userId} initialized connection`);
           if (userId) {
             clients.set(userId, ws);
+            // Update user status in DB
+            const updatedUser = await User.findOneAndUpdate(
+              { userId: userId }, 
+              { $set: { isOnline: true } }, 
+              { new: true }
+            );
+            console.log(`Updated user ${userId} to online:`, updatedUser ? 'Success' : 'User not found in DB');
+            if (updatedUser) {
+              console.log('User data in DB after update:', updatedUser);
+            }
+            // Broadcast that user is online
+            broadcastStatus(userId, true);
+          } else {
+            console.log('Init message received but no userId/fromUserId found');
           }
           return;
         }
@@ -81,9 +113,15 @@ function setupWebSocket(server) {
       }
     });
 
-    ws.on('close', () => {
+    ws.on('close', async () => {
       if (userId) {
+        console.log(`User ${userId} disconnected`);
         clients.delete(userId);
+        // Update user status in DB
+        await User.findOneAndUpdate({ userId }, { isOnline: false, lastSeen: new Date() });
+        console.log(`Updated user ${userId} to offline`);
+        // Broadcast that user is offline
+        broadcastStatus(userId, false);
       }
     });
   });

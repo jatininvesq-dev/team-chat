@@ -32,7 +32,18 @@ router.get('/with/:otherUserId', authenticateToken, async (req, res) => {
       ],
     }).sort({ createdAt: 1 });
 
-    res.json({ messages });
+    const otherUser = await User.findOne({ userId: otherUserId }).select('userId name email isOnline lastSeen');
+
+    res.json({
+      messages,
+      otherUser: otherUser ? {
+        userId: otherUser.userId,
+        name: otherUser.name,
+        email: otherUser.email,
+        isOnline: otherUser.isOnline,
+        lastSeen: otherUser.lastSeen,
+      } : null
+    });
   } catch (error) {
     console.error('Get chat history error:', error);
     res.status(500).json({ error: 'Server error while fetching chat history.' });
@@ -95,6 +106,8 @@ router.get('/conversations', authenticateToken, async (req, res) => {
             userId: '$user.userId',
             name: '$user.name',
             email: '$user.email',
+            isOnline: '$user.isOnline',
+            lastSeen: '$user.lastSeen',
           },
         },
       },

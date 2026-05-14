@@ -41,6 +41,8 @@ router.post('/register', async (req, res) => {
         userId: user.userId,
         name: user.name,
         email: user.email,
+        isOnline: user.isOnline,
+        lastSeen: user.lastSeen,
       },
       token,
     });
@@ -77,6 +79,8 @@ router.post('/login', async (req, res) => {
         userId: user.userId,
         name: user.name,
         email: user.email,
+        isOnline: user.isOnline,
+        lastSeen: user.lastSeen,
       },
       token,
     });
