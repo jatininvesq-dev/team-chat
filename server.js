@@ -13,6 +13,7 @@ dotenv.config();
 const { connectDatabase } = require('./config/db');
 const authRoutes = require('./routes/auth');
 const messageRoutes = require('./routes/messages');
+const postRoutes = require('./routes/posts');
 const { setupWebSocket } = require('./socket/chat');
 
 const app = express();
@@ -21,6 +22,8 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/faces', require('./routes/faceAuth'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Ensure uploads directory exists
