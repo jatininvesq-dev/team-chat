@@ -1,7 +1,6 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Local `netlify dev` reads project .env; production uses Netlify UI env vars
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const serverless = require('serverless-http');
@@ -10,25 +9,24 @@ const { connectDatabase } = require('../../config/db');
 
 const serverlessHandler = serverless(app);
 
-/** Map Netlify function path back to Express /api/* routes */
 function normalizeEventPath(event) {
   const prefix = '/.netlify/functions/api';
-  let path = event.path || '/';
+  let routePath = event.path || '/';
 
-  if (path.startsWith(prefix)) {
-    path = path.slice(prefix.length) || '/';
+  if (routePath.startsWith(prefix)) {
+    routePath = routePath.slice(prefix.length) || '/';
   }
 
-  if (!path.startsWith('/api') && path !== '/') {
-    path = `/api${path.startsWith('/') ? path : `/${path}`}`;
+  if (!routePath.startsWith('/api') && routePath !== '/') {
+    routePath = `/api${routePath.startsWith('/') ? routePath : `/${routePath}`}`;
   }
 
-  event.path = path;
+  event.path = routePath;
 
   if (event.rawUrl) {
     try {
       const url = new URL(event.rawUrl);
-      url.pathname = path;
+      url.pathname = routePath;
       event.rawUrl = url.toString();
     } catch {
       // ignore malformed rawUrl
@@ -41,8 +39,20 @@ function normalizeEventPath(event) {
 exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
-  await connectDatabase();
   normalizeEventPath(event);
+
+  try {
+    await connectDatabase();
+  } catch (err) {
+    console.error('Database connection failed:', err.message);
+    return {
+      statusCode: 503,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: err.message || 'Database connection failed.',
+      }),
+    };
+  }
 
   return serverlessHandler(event, context);
 };
