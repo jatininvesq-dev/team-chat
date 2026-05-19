@@ -11,7 +11,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chatty-secret-key';
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, faceData, FaceData } = req.body;
+    const userFaceData = faceData ?? FaceData ?? null;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required.' });
@@ -30,6 +31,7 @@ router.post('/register', async (req, res) => {
       name,
       email,
       password: hashedPassword,
+      ...(userFaceData != null && { faceData: userFaceData }),
     });
 
     const token = jwt.sign({ userId: user.userId, email: user.email }, JWT_SECRET, {
@@ -43,6 +45,7 @@ router.post('/register', async (req, res) => {
         email: user.email,
         isOnline: user.isOnline,
         lastSeen: user.lastSeen,
+        faceData: user.faceData,
       },
       token,
     });

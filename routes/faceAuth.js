@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const FaceData = require('../models/FaceData');
-const authenticateToken = require('../middleware/auth'); 
 
 // Helper function to calculate similarity (Euclidean distance)
 function euclideanDistance(emb1, emb2) {
-  if (emb1.length !== emb2.length) return Infinity;
+  if (!emb1 || !emb2 || emb1.length !== emb2.length) return Infinity;
   let sum = 0;
   for (let i = 0; i < emb1.length; i++) {
     const diff = emb1[i] - emb2[i];
@@ -14,61 +13,70 @@ function euclideanDistance(emb1, emb2) {
   return Math.sqrt(sum);
 }
 
+/** Pull a numeric embedding array from client `faceData` (various shapes). */
+function extractEmbedding(faceData) {
+  if (faceData == null) return null;
+  if (Array.isArray(faceData) && faceData.every((n) => typeof n === 'number')) {
+    return faceData;
+  }
+  if (typeof faceData === 'object') {
+    if (Array.isArray(faceData.faceEmbedding) && faceData.faceEmbedding.every((n) => typeof n === 'number')) {
+      return faceData.faceEmbedding;
+    }
+    if (Array.isArray(faceData.embedding) && faceData.embedding.every((n) => typeof n === 'number')) {
+      return faceData.embedding;
+    }
+  }
+  return null;
+}
+
+function recordEmbedding(doc) {
+  if (doc.faceEmbedding && doc.faceEmbedding.length) return doc.faceEmbedding;
+  return extractEmbedding(doc.faceData);
+}
+
 // Threshold: If distance is less than this, it's considered the same face.
-const FACE_MATCH_THRESHOLD = 0.8; 
+const FACE_MATCH_THRESHOLD = 0.8;
 
-router.post('/register', authenticateToken, async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
-    const { faceEmbedding } = req.body;
+    const { faceData } = req.body;
 
-    if (!faceEmbedding || !Array.isArray(faceEmbedding)) {
-      return res.status(400).json({ error: 'Invalid face embedding data.' });
+    if (faceData === undefined || faceData === null) {
+      return res.status(400).json({ error: 'faceData is required in the request body.' });
     }
 
-    // 1. Fetch all registered faces to check for duplicates
-    const allFaces = await FaceData.find();
+    const faceEmbedding = extractEmbedding(faceData);
 
-    // 2. Check if face is already registered by someone else
-    for (const faceRecord of allFaces) {
-      // Don't compare with own face if already registered
-      if (faceRecord.userId === req.user.userId) continue;
+    if (faceEmbedding) {
+      const allFaces = await FaceData.find();
 
-      const distance = euclideanDistance(faceEmbedding, faceRecord.faceEmbedding);
-      
-      if (distance < FACE_MATCH_THRESHOLD) {
-        return res.status(400).json({ 
-          error: 'This face is already registered with another account.' 
-        });
+      for (const faceRecord of allFaces) {
+        const otherEmb = recordEmbedding(faceRecord);
+        if (!otherEmb) continue;
+
+        const distance = euclideanDistance(faceEmbedding, otherEmb);
+
+        if (distance < FACE_MATCH_THRESHOLD) {
+          return res.status(400).json({
+            error: 'This face is already registered.',
+          });
+        }
       }
     }
 
-    // Check if current user already has a face registered
-    let existingFaceData = await FaceData.findOne({ userId: req.user.userId });
-    
-    if (existingFaceData) {
-      // Update existing face data
-      existingFaceData.faceEmbedding = faceEmbedding;
-      await existingFaceData.save();
-      
-      return res.status(200).json({
-        message: 'Face data updated successfully.',
-        data: existingFaceData
-      });
+    const payload = { faceData };
+    if (faceEmbedding) {
+      payload.faceEmbedding = faceEmbedding;
     }
 
-    // 3. If no match is found, save the new face data
-    const newFaceData = new FaceData({
-      userId: req.user.userId, 
-      faceEmbedding: faceEmbedding
-    });
-
+    const newFaceData = new FaceData(payload);
     await newFaceData.save();
 
     res.status(201).json({
       message: 'Face data registered successfully.',
-      data: newFaceData
+      data: newFaceData,
     });
-
   } catch (error) {
     console.error('Face registration error:', error);
     res.status(500).json({ error: 'Internal server error.' });
