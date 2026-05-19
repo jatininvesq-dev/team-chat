@@ -5,11 +5,12 @@
   "license": "ISC",
   "author": "jatin invesq",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "init-db": "node scripts/init-db.js"
+    "init-db": "node scripts/init-db.js",
+    "netlify:dev": "npx netlify dev"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -19,6 +20,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.4.0",
     "multer": "^2.1.1",
+    "serverless-http": "^3.2.0",
     "ws": "^8.13.0"
   },
   "devDependencies": {
