@@ -3,28 +3,38 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
-const isServerless = Boolean(
-  process.env.NETLIFY ||
-    process.env.NETLIFY_DEV ||
-    process.env.AWS_LAMBDA_FUNCTION_NAME
-);
+function isServerless() {
+  return Boolean(
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT ||
+    process.env.NETLIFY ||
+    process.env.NETLIFY_DEV
+  );
+}
 
 function getUploadDir() {
-  if (isServerless) {
+  if (isServerless()) {
     return path.join(os.tmpdir(), 'chatty-uploads');
   }
   return path.join(process.cwd(), 'uploads');
 }
 
-function createMulterUpload() {
-  const uploadDir = getUploadDir();
+function ensureUploadDir(uploadDir) {
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
+}
 
+function createMulterUpload() {
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null, uploadDir);
+      try {
+        const uploadDir = getUploadDir();
+        ensureUploadDir(uploadDir);
+        cb(null, uploadDir);
+      } catch (err) {
+        cb(err);
+      }
     },
     filename: (req, file, cb) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
