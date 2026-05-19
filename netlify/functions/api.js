@@ -1,3 +1,9 @@
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Local `netlify dev` reads project .env; production uses Netlify UI env vars
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 const serverless = require('serverless-http');
 const app = require('../../app');
 const { connectDatabase } = require('../../config/db');

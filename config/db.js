@@ -10,7 +10,9 @@ async function connectDatabase() {
   const MONGODB_URI = process.env.MONGODB_URI;
 
   if (!MONGODB_URI) {
-    throw new Error('MONGODB_URI is required in environment variables');
+    throw new Error(
+      'MONGODB_URI is not set. Add it in Netlify: Site configuration → Environment variables (scope: All or Production), then redeploy.'
+    );
   }
 
   if (cached.conn) {

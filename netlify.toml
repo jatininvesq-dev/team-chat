@@ -3,6 +3,9 @@
   publish = "public"
   functions = "netlify/functions"
 
+# Secrets: set MONGODB_URI and JWT_SECRET in Netlify UI (not in this file).
+# Site configuration → Environment variables → Add variable → Redeploy site.
+
 [functions]
   external_node_modules = ["express", "mongoose", "bcryptjs"]
   node_bundler = "esbuild"
